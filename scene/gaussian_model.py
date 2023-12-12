@@ -20,6 +20,7 @@ from utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
 from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
+from scene.nerf_model import VaniliaNeRF
 
 class GaussianModel:
 
@@ -53,7 +54,9 @@ class GaussianModel:
         self.max_radii2D = torch.empty(0)
         self.xyz_gradient_accum = torch.empty(0)
         self.denom = torch.empty(0)
+        self.mlp: VaniliaNeRF = None
         self.optimizer = None
+        self.mlp_optimizer = None
         self.percent_dense = 0
         self.spatial_lr_scale = 0
         self.setup_functions()
@@ -71,6 +74,8 @@ class GaussianModel:
             self.xyz_gradient_accum,
             self.denom,
             self.optimizer.state_dict(),
+            self.mlp.state_dict(),
+            self.mlp_optimizer.state_dict(),
             self.spatial_lr_scale,
         )
     
@@ -145,6 +150,7 @@ class GaussianModel:
         self._rotation = nn.Parameter(rots.requires_grad_(True))
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
+        self.mlp = VaniliaNeRF().to("cuda")
 
     def training_setup(self, training_args):
         self.percent_dense = training_args.percent_dense
@@ -161,6 +167,7 @@ class GaussianModel:
         ]
 
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
+        self.mlp_optimizer = torch.optim.Adam(self.mlp.parameters(), lr=3e-4)
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
                                                     lr_final=training_args.position_lr_final*self.spatial_lr_scale,
                                                     lr_delay_mult=training_args.position_lr_delay_mult,
