@@ -14,6 +14,9 @@ import math
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
+from scene.nerf_model import Embedder
+
+emb = Embedder()
 
 def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
     """
@@ -81,7 +84,11 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     else:
         colors_precomp = override_color
 
-    shs = pc.mlp(shs, means3D) # [N, 16, 3], [N, 6]
+    cc = viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1)
+    dir_pp = (pc.get_xyz - cc)
+    dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
+    
+    opacity = pc._mlp(opacity, dir_pp_normalized) # [N, 16, 3], [N, 6]
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     rendered_image, radii = rasterizer(
