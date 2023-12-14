@@ -54,8 +54,8 @@ class GaussianModel:
         self.max_radii2D = torch.empty(0)
         self.xyz_gradient_accum = torch.empty(0)
         self.denom = torch.empty(0)
-        self._mlp_r: MLP = None
-        self._mlp_s: MLP = None
+        #self._mlp_r: MLP = None
+        self._mlp: MLP = None
         self.optimizer = None
         self.nn_optimizer = None
         self.percent_dense = 0
@@ -97,6 +97,7 @@ class GaussianModel:
         self.xyz_gradient_accum = xyz_gradient_accum
         self.denom = denom
         self.optimizer.load_state_dict(opt_dict)
+        self._mlp.load_state_dict(opt_dict)
 
     @property
     def get_scaling(self):
@@ -150,8 +151,8 @@ class GaussianModel:
         self._scaling = nn.Parameter(scales.requires_grad_(True))
         self._rotation = nn.Parameter(rots.requires_grad_(True))
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
-        self._mlp_r: MLP = MLP(7, 4, "rotation").to("cuda")
-        self._mlp_s: MLP = MLP(58, 3).to("cuda")
+        # self._mlp_r: MLP = MLP(7, 4, "rotation").to("cuda")
+        self._mlp: MLP = MLP(58, 3).to("cuda")
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
     def training_setup(self, training_args):
@@ -168,8 +169,8 @@ class GaussianModel:
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"}
         ]
         
-        grads = list(self._mlp_s.parameters())
-        # grads += list(self._mlp_s.parameters())
+        grads = list(self._mlp.parameters())
+        # grads += list(self._mlp.parameters())
 
 
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
@@ -212,7 +213,6 @@ class GaussianModel:
         opacities = self._opacity.detach().cpu().numpy()
         scale = self._scaling.detach().cpu().numpy()
         rotation = self._rotation.detach().cpu().numpy()
-
         dtype_full = [(attribute, 'f4') for attribute in self.construct_list_of_attributes()]
 
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
@@ -233,7 +233,6 @@ class GaussianModel:
                         np.asarray(plydata.elements[0]["y"]),
                         np.asarray(plydata.elements[0]["z"])),  axis=1)
         opacities = np.asarray(plydata.elements[0]["opacity"])[..., np.newaxis]
-
         features_dc = np.zeros((xyz.shape[0], 3, 1))
         features_dc[:, 0, 0] = np.asarray(plydata.elements[0]["f_dc_0"])
         features_dc[:, 1, 0] = np.asarray(plydata.elements[0]["f_dc_1"])
@@ -259,6 +258,7 @@ class GaussianModel:
         rots = np.zeros((xyz.shape[0], len(rot_names)))
         for idx, attr_name in enumerate(rot_names):
             rots[:, idx] = np.asarray(plydata.elements[0][attr_name])
+
 
         self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True))
         self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))

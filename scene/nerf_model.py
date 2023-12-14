@@ -63,6 +63,6 @@ class MLP(nn.Module):
         x = torch.nn.functional.normalize(x)
         x = torch.concat([x, y, rotations, scales], dim=1)
         x = self.main(x)
-        if self.target == "rotation":
-            return self.rotation(x)
+        #if self.target == "rotation":
+        #    return self.rotation(x)
         return self.out(x)
