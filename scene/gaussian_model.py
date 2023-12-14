@@ -54,9 +54,10 @@ class GaussianModel:
         self.max_radii2D = torch.empty(0)
         self.xyz_gradient_accum = torch.empty(0)
         self.denom = torch.empty(0)
-        self._mlp: MLP = None
+        self._mlp_r: MLP = None
+        self._mlp_s: MLP = None
         self.optimizer = None
-        self.mlp_optimizer = None
+        self.nn_optimizer = None
         self.percent_dense = 0
         self.spatial_lr_scale = 0
         self.setup_functions()
@@ -149,7 +150,8 @@ class GaussianModel:
         self._scaling = nn.Parameter(scales.requires_grad_(True))
         self._rotation = nn.Parameter(rots.requires_grad_(True))
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
-        self._mlp = MLP(54).to("cuda")
+        self._mlp_r: MLP = MLP(7, 4, "rotation").to("cuda")
+        self._mlp_s: MLP = MLP(58, 3).to("cuda")
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
     def training_setup(self, training_args):
@@ -165,9 +167,14 @@ class GaussianModel:
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"}
         ]
+        
+        grads = list(self._mlp_s.parameters())
+        # grads += list(self._mlp_s.parameters())
+
 
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
-        self.mlp_optimizer = torch.optim.Adam(self._mlp.parameters(), lr=3e-4)
+        self.mlp_optimizer = torch.optim.Adam(grads, lr=0.001)
+
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
                                                     lr_final=training_args.position_lr_final*self.spatial_lr_scale,
                                                     lr_delay_mult=training_args.position_lr_delay_mult,

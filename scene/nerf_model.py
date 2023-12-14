@@ -40,48 +40,29 @@ class Embedder:
 
 
 class MLP(nn.Module):
-    def __init__(self, input_size):
+    def __init__(self, input_size, output_size, target = ""):
         super().__init__()
         self.input_size = input_size
+        self.output_size = output_size
+        self.target = target
         self.slope = 0.01
-
+        W = 32
         self.main = nn.Sequential(
-                nn.Linear(self.input_size, 64),
+                nn.Linear(self.input_size, W*2),
                 nn.LeakyReLU(self.slope),
-                nn.Linear(64, 64),
+                nn.Linear(W*2, W),
                 nn.LeakyReLU(self.slope),
+                nn.Linear(W, W),
             )
-        self.opactiy = nn.Sequential(
-            nn.Linear(4, 64),
-            nn.LeakyReLU(self.slope),
-            nn.Linear(64, 64),
-            nn.LeakyReLU(self.slope),
-            nn.Linear(64, 1),
-            nn.Sigmoid()
-        )
+        self.rotation = nn.Sequential(nn.Linear(W, self.output_size), nn.Sigmoid())
+        self.out = nn.Sequential(nn.Linear(W, 3), nn.Sigmoid())
+        self.alpha = nn.Sequential(nn.Linear(W, 1), nn.Sigmoid())
 
-        self.shs_factor = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(48, 48),
-            nn.LeakyReLU(self.slope),
-            nn.Linear(48, 48),
-            nn.Sigmoid()
-        )
-
-    def forward(self, opacity, viewdir):
-        # shs = shs.view(shs.size(0), -1) # 48 + 54 = 102
-        x = torch.concat([opacity, viewdir], dim=1)
-        # x = self.main(x)
-        opacity = self.opactiy(x)
-        # shs_new = self.shs_factor(shs)
-        # shs_new = shs_new.view(-1, 16, 3)
-        return opacity
-    
-    def get_parameters(self):
-        param_list = []
-        for _, param in self.named_parameters():
-            param_list.append(param)
-        return param_list
-    
-    def pos(self, x):
-        raise NotImplementedError
+    def forward(self, x, rotations, scales, y):
+        x = x.view(x.size(0), -1) 
+        x = torch.nn.functional.normalize(x)
+        x = torch.concat([x, y, rotations, scales], dim=1)
+        x = self.main(x)
+        if self.target == "rotation":
+            return self.rotation(x)
+        return self.out(x)
