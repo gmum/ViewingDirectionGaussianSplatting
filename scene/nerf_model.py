@@ -46,7 +46,7 @@ class MLP(nn.Module):
         self.output_size = output_size
         self.target = target
         self.slope = 0.01
-        W = 32
+        W = 48
         self.main = nn.Sequential(
                 nn.Linear(self.input_size, W*2),
                 nn.LeakyReLU(self.slope),
@@ -55,8 +55,8 @@ class MLP(nn.Module):
                 nn.Linear(W, W),
             )
         self.rotation = nn.Sequential(nn.Linear(W, self.output_size), nn.Sigmoid())
-        self.out = nn.Sequential(nn.Linear(W, 3), nn.Sigmoid())
-        self.alpha = nn.Sequential(nn.Linear(W, 1), nn.Sigmoid())
+        #self.out = nn.Sequential(nn.Linear(W, W), nn.Sigmoid())
+        self.alpha = nn.Sequential(nn.Linear(W, W), nn.Tanh())
 
     def forward(self, x, rotations, scales, y):
         x = x.view(x.size(0), -1) 
@@ -65,4 +65,4 @@ class MLP(nn.Module):
         x = self.main(x)
         #if self.target == "rotation":
         #    return self.rotation(x)
-        return self.out(x)
+        return self.alpha(x)
