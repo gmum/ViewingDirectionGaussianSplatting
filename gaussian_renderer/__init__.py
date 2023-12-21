@@ -91,9 +91,8 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
 
     # rotations = pc._mlp_r(rotations, dir_pp_normalized) # [N, 16, 3], [N, 6]
     # rotations = pc.rotation_activation(rotations)
-    shs_factor = pc._mlp(shs, rotations, scales, dir_pp_normalized) # 48, 4, 3, 3
-    shs_factor = torch.reshape(shs_factor, (-1, 16, 3))
-    shs = shs * shs_factor
+    opacity_factor = pc._mlp(shs, rotations, scales, dir_pp_normalized) # 48, 4, 3, 3
+    opacity = opacity_factor*opacity
     # colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
     # opacity.data = alpha
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
