@@ -1,5 +1,5 @@
 # Gaussian Splatting with NeRF-based Color and Opacity
-Dawud Malarz*, Weronika Smolak*, Jacek Tabor, Sławomir Tadeja, Przemysław Spurek (* indicates equal contribution)<br>
+Dawid Malarz*, Weronika Smolak*, Jacek Tabor, Sławomir Tadeja, Przemysław Spurek (* indicates equal contribution)<br>
 ![Teaser image](assets/Directed_nerf.png)
 
 | arXiv |
