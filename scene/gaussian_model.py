@@ -64,6 +64,8 @@ class GaussianModel:
         self.denom = torch.empty(0)
         self._vdgs = None
         self.vdgs_optimizer = None
+        self.vdgs_operator = None
+        self.vdgs_type = None
         self.optimizer = None
         self.percent_dense = 0
         self.spatial_lr_scale = 0
@@ -184,9 +186,10 @@ class GaussianModel:
 
         vdgs_input = ((self.max_sh_degree + 1) ** 2) * 3 + self._scaling.shape[1] + self._rotation.shape[1] + CAMERA_VIEWDIR
         
-        self._vdgs = VDGS(vdgs_input, output_size=output_size).to("cuda")
+        self._vdgs = VDGS(vdgs_input, output_size=output_size, net_width=training_args.vdgs_width).to("cuda")
         self.vdgs_optimizer = torch.optim.Adam(self._vdgs.parameters(), lr=training_args.vdgs_lr)
-
+        self.vdgs_operator = training_args.vdgs_operator
+        self.vdgs_type = training_args.vdgs_type
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
                                                     lr_final=training_args.position_lr_final*self.spatial_lr_scale,
                                                     lr_delay_mult=training_args.position_lr_delay_mult,

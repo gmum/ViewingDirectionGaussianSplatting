@@ -17,6 +17,9 @@ class VDGS(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(self.net_width, self.net_width),
         )
+        self.rotation = nn.Sequential(
+            nn.Linear(self.input_size, 50), nn.Sigmoid()
+        )
         self.head = nn.Sequential(
             nn.Linear(self.net_width, self.output_size), nn.Tanh()
         )
@@ -27,4 +30,6 @@ class VDGS(nn.Module):
         x = torch.concat([shs, viewdirs, rotations, scales], dim=1)
         x = self.main(x)
         x =  self.head(x)
+        # if self.output_size == 60:
+        #    return self.rotation(x)
         return x
