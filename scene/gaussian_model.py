@@ -20,7 +20,15 @@ from utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
 from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
-from scene.nerf_model import MLP, Embedder
+from scene.nerf_model import VDGS
+
+VDGS_OUTPUT_SIZE = {
+    "opacity": 1,
+    "color": 48,
+    "both": 49
+}
+
+CAMERA_VIEWDIR = 3
 
 class GaussianModel:
 
@@ -54,10 +62,9 @@ class GaussianModel:
         self.max_radii2D = torch.empty(0)
         self.xyz_gradient_accum = torch.empty(0)
         self.denom = torch.empty(0)
-        #self._mlp_r: MLP = None
-        self._mlp: MLP = None
+        self._vdgs = None
+        self.vdgs_optimizer = None
         self.optimizer = None
-        self.nn_optimizer = None
         self.percent_dense = 0
         self.spatial_lr_scale = 0
         self.setup_functions()
@@ -75,8 +82,8 @@ class GaussianModel:
             self.xyz_gradient_accum,
             self.denom,
             self.optimizer.state_dict(),
-            self._mlp.state_dict(),
-            self.mlp_optimizer.state_dict(),
+            self._vdgs.state_dict(),
+            self.vdgs_optimizer.state_dict(),
             self.spatial_lr_scale,
         )
     
@@ -97,7 +104,8 @@ class GaussianModel:
         self.xyz_gradient_accum = xyz_gradient_accum
         self.denom = denom
         self.optimizer.load_state_dict(opt_dict)
-        self._mlp.load_state_dict(opt_dict)
+        self._vdgs.load_state_dict(opt_dict)
+        self.vdgs_optimizer.load_state_dict(opt_dict)
 
     @property
     def get_scaling(self):
@@ -151,8 +159,7 @@ class GaussianModel:
         self._scaling = nn.Parameter(scales.requires_grad_(True))
         self._rotation = nn.Parameter(rots.requires_grad_(True))
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
-        # self._mlp_r: MLP = MLP(7, 4, "rotation").to("cuda")
-        self._mlp: MLP = MLP(58, 3).to("cuda")
+
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
     def training_setup(self, training_args):
@@ -169,12 +176,16 @@ class GaussianModel:
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"}
         ]
         
-        grads = list(self._mlp.parameters())
-        # grads += list(self._mlp.parameters())
-
-
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
-        self.mlp_optimizer = torch.optim.Adam(grads, lr=0.001)
+        output_size = VDGS_OUTPUT_SIZE.get(training_args.vdgs_type, None)
+
+        if not output_size:
+            raise ValueError(f"We don't support {training_args.vdgs_type}")
+
+        vdgs_input = ((self.max_sh_degree + 1) ** 2) * 3 + self._scaling.shape[1] + self._rotation.shape[1] + CAMERA_VIEWDIR
+        
+        self._vdgs = VDGS(vdgs_input, output_size=output_size).to("cuda")
+        self.vdgs_optimizer = torch.optim.Adam(self._vdgs.parameters(), lr=training_args.vdgs_lr)
 
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
                                                     lr_final=training_args.position_lr_final*self.spatial_lr_scale,
