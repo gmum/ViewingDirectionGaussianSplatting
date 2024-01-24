@@ -12,14 +12,37 @@ Abstract: *Neural Radiance Fields (NeRFs) have demonstrated the remarkable poten
 ## 3D Gaussian Splatting
 Code is a modification of the original code from [3D Gaussian Splatting for Real-Time Radiance Field Rendering paper](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/).
 
-## Requirements and how to install
+## Requirements and how to use
 
-- Dependencies for Conda environment management are stored in `environment.yml`
+Dependencies for Conda environment management are stored in `environment.yml`.
 
+In order to train the main model (VDGS opacity multiplication) just simply run the command below, similarly like you would in [the original repository for 3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/):
+```
+python train.py -s <path to COLMAP or NeRF Synthetic dataset> --vdgs_type opacity --vdgs_operator mul 
+```
+In order to use other models mentioned in VDGS paper from our ablation study such as these:
+- Default model: VDGS opacity multiplication 
+- VDGS color (SHs) factor sum
+- VDGS color (SHs) factor multiplication
+- VDGS opacity factor multiplication
+- VDGS opacity and color (SHs) factors sum
+- VDGS opacity and color (SHs) factors multiplication 
+
+You can use flags such as `--vdgs_operator` and `--vdgs_type` in order to specify which model you want to use. 
+
+Supported arguments: 
+- `--vdgs_type`: "both", "opacity", "color" 
+- `--vdgs_operator`: "mul", "add" 
+
+To evaluate the model use commands as described in [the original repository 3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) with additional flags for the model that you wish to use.
+```
+python train.py -s <path to COLMAP or NeRF Synthetic dataset> --eval --vdgs_type opacity --vdgs_operator mul # Train with train/test split
+python render.py -m <path to trained model> # Generate renderings
+python metrics.py -m <path to trained model> # Compute error metrics on renderings
+```
+Other optional arguments work the same as in [the original repository 3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/).
 
 ## Notes
-
-Current version of the code in this repository shows our best performing model which creates opacity factors which are then multiplied by original opacity and used further in gaussians training process. In the future other versions of models (i.e. SHS factor multiplication) used in the paper may be added to this repository.  
 
 Interactive viewers such as SIBR viewers are not currently supported by our code and may be rendered incorrectly by them.
 
