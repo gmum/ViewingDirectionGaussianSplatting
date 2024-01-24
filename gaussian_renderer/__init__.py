@@ -14,9 +14,45 @@ import math
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
-from scene.nerf_model import Embedder
 
-emb = Embedder()
+
+def apply_vdgs_operation(operator, factor, value):
+    if operator == "mul":
+        return factor * value
+    elif operator == "add":
+        return factor + value
+    else:
+        raise ValueError("Wrong VDGS operator. We support only mul|add")
+    
+def process_vdgs(pipe, color, opacity, factor):
+    vdgs_operations = {
+        "opacity": lambda factor, value: apply_vdgs_operation(pipe.vdgs_operator, factor, value),
+        "color": lambda factor, value: apply_vdgs_operation(pipe.vdgs_operator, factor, value),
+        "both": lambda factor, values: (apply_vdgs_operation(pipe.vdgs_operator, factor[0], values[0]), 
+                                        apply_vdgs_operation(pipe.vdgs_operator, factor[1], values[1]))
+    }
+
+    if pipe.vdgs_type in vdgs_operations:
+        if pipe.vdgs_type == "both":
+            color_factor, opacity_factor = torch.split(factor, [48, 1], dim=1)
+            color_factor = torch.reshape(color_factor, (-1, 16, 3))
+            color, opacity = vdgs_operations[pipe.vdgs_type]([color_factor, opacity_factor], [color_factor, opacity])
+        else:
+            if pipe.vdgs_type == "opacity":
+                value = opacity
+            else:
+                factor = torch.reshape(factor, (-1, 16, 3))
+                value = color
+            result = vdgs_operations[pipe.vdgs_type](factor, value)
+            if pipe.vdgs_type == "opacity":
+                opacity = result
+            else:
+                color = result
+    else:
+        raise ValueError("Unsupported VDGS type")
+
+    return color, opacity
+
 
 def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
     """
@@ -84,17 +120,15 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     else:
         colors_precomp = override_color
 
-    cc = viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1)
-    dir_pp = (pc.get_xyz - cc)
-    dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
-    # dir_pp_embed = emb.embed(dir_pp)
+    if pc._vdgs:
+        cc = viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1)
+        dir_pp = (pc.get_xyz - cc)
+        dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
 
-    # rotations = pc._mlp_r(rotations, dir_pp_normalized) # [N, 16, 3], [N, 6]
-    # rotations = pc.rotation_activation(rotations)
-    opacity_factor = pc._mlp(shs, rotations, scales, dir_pp_normalized) # 48, 4, 3, 3
-    opacity = opacity_factor*opacity
-    # colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
-    # opacity.data = alpha
+        factor = pc._vdgs(shs, rotations, scales, dir_pp_normalized)
+        shs, opacity = process_vdgs(pc, shs, opacity, factor)
+        
+    
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     rendered_image, radii = rasterizer(
         means3D = means3D,
