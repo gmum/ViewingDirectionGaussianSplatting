@@ -81,6 +81,10 @@ class Scene:
                                                            "iteration_" + str(self.loaded_iter),
                                                            "point_cloud.ply"))
             self.gaussians._vdgs = load(os.path.join(self.model_path, "point_cloud", "iteration_" + str(self.loaded_iter), "mlp_model.pt"))
+            with open(os.path.join(self.model_path, "vdgs_settings.json"), 'r') as file:
+                vdgs_settings = json.load(file)
+                self.gaussians.vdgs_type = vdgs_settings["vdgs_type"]
+                self.gaussians.vdgs_operator = vdgs_settings["vdgs_operator"]
         else:
             self.gaussians.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
 
