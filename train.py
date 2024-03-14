@@ -10,6 +10,7 @@
 #
 
 import os
+import json
 import torch
 from random import randint
 from utils.loss_utils import l1_loss, ssim
@@ -37,6 +38,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
+    else: 
+        vdgs_settings = {
+                "vdgs_type": gaussians.vdgs_type,
+                "vdgs_operator": gaussians.vdgs_operator
+        }
+        with open(os.path.join(scene.model_path, "vdgs_settings.json"), 'w') as file:
+            json.dump(vdgs_settings, file)
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
