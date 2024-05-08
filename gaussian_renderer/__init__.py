@@ -36,7 +36,7 @@ def process_vdgs(pipe, color, opacity, factor):
         if pipe.vdgs_type == "both":
             color_factor, opacity_factor = torch.split(factor, [48, 1], dim=1)
             color_factor = torch.reshape(color_factor, (-1, 16, 3))
-            color, opacity = vdgs_operations[pipe.vdgs_type]([color_factor, opacity_factor], [color_factor, opacity])
+            color, opacity = vdgs_operations[pipe.vdgs_type]([color_factor, opacity_factor], [color, opacity])
         else:
             if pipe.vdgs_type == "opacity":
                 value = opacity
@@ -125,7 +125,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         dir_pp = (pc.get_xyz - cc)
         dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
 
-        factor = pc._vdgs(shs, rotations, scales, dir_pp_normalized)
+        factor = pc._vdgs(shs, rotations, scales, dir_pp_normalized, pc.get_xyz)
         shs, opacity = process_vdgs(pc, shs, opacity, factor)
         
     

@@ -186,7 +186,8 @@ class GaussianModel:
 
         vdgs_input = ((self.max_sh_degree + 1) ** 2) * 3 + self._scaling.shape[1] + self._rotation.shape[1] + CAMERA_VIEWDIR
         
-        self._vdgs = VDGS(vdgs_input, output_size=output_size, net_width=training_args.vdgs_width).to("cuda")
+        self._vdgs = VDGS(vdgs_input, output_size=output_size, net_width=training_args.vdgs_width).to("cuda") #
+
         self.vdgs_optimizer = torch.optim.Adam(self._vdgs.parameters(), lr=training_args.vdgs_lr)
         self.vdgs_operator = training_args.vdgs_operator
         self.vdgs_type = training_args.vdgs_type

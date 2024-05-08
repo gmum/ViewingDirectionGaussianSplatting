@@ -1,0 +1,22 @@
+{
+    "vdgs": {
+        "otype": "FullyFusedMLP",
+        "activation": "LeakyReLU",
+        "output_activation": "Tanh",
+        "n_neurons": 32,
+        "n_hidden_layers": 2
+        },
+    "encoding": {
+      "otype": "HashGrid",
+      "n_levels": 4,
+      "n_features_per_level": 4,
+      "log2_hashmap_size": 15,
+      "base_resolution": 16,
+      "per_level_scale": 1.5
+      },
+    "encoding_opacity": {
+      "otype": "Frequency", // Component type.
+      "n_frequencies": 10   // Number of frequencies (sin & cos)
+                            // per encoded dimension.
+    }
+}

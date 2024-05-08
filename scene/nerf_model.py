@@ -10,26 +10,29 @@ class VDGS(nn.Module):
         self.net_width = net_width
         self.factor = 2
 
-        self.main = nn.Sequential(
-            nn.Linear(self.input_size, self.net_width * self.factor),
-            nn.LeakyReLU(),
-            nn.Linear(self.net_width * self.factor, self.net_width),
-            nn.LeakyReLU(),
-            nn.Linear(self.net_width, self.net_width),
-        )
-        self.rotation = nn.Sequential(
-            nn.Linear(self.input_size, 50), nn.Sigmoid()
-        )
-        self.head = nn.Sequential(
-            nn.Linear(self.net_width, self.output_size), nn.Tanh()
-        )
+        import commentjson as json
+        import tinycudann as tcnn
 
-    def forward(self, shs, rotations, scales, viewdirs):
+        with open("config.json") as f:
+            config = json.load(f)
+        
+        self.enc = tcnn.Encoding(3, encoding_config=config["encoding"])
+        self.main = tcnn.Network(input_size + self.enc.n_output_dims, output_size, network_config=config["vdgs"]) 
+
+        def init_weights(m):
+            # if isinstance(m, nn.Linear):
+            torch.nn.init.ones_(m.params.data)
+                # m.bias.data.fill_(1.0)
+                
+        # self.enc.apply(init_weights)
+        self.main.apply(init_weights)
+
+    def forward(self, shs, rotations, scales, viewdirs, xyz):
         shs = shs.view(shs.size(0), -1)
         shs = torch.nn.functional.normalize(shs)
-        x = torch.concat([shs, viewdirs, rotations, scales], dim=1)
+        
+        emb = self.enc(xyz)
+        x = torch.concat([shs, viewdirs, rotations, scales, emb], dim=1)
         x = self.main(x)
-        x =  self.head(x)
-        # if self.output_size == 60:
-        #    return self.rotation(x)
+
         return x
