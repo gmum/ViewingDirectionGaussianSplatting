@@ -2,7 +2,7 @@
     "vdgs": {
         "otype": "FullyFusedMLP",
         "activation": "LeakyReLU",
-        "output_activation": "Tanh",
+        "output_activation": "Sigmoid",
         "n_neurons": 32,
         "n_hidden_layers": 2
         },

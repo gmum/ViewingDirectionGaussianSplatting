@@ -17,22 +17,11 @@ class VDGS(nn.Module):
             config = json.load(f)
         
         self.enc = tcnn.Encoding(3, encoding_config=config["encoding"])
-        self.main = tcnn.Network(input_size + self.enc.n_output_dims, output_size, network_config=config["vdgs"]) 
+        self.main = tcnn.Network( self.enc.n_output_dims + 3, output_size, network_config=config["vdgs"]) 
 
-        def init_weights(m):
-            # if isinstance(m, nn.Linear):
-            torch.nn.init.ones_(m.params.data)
-                # m.bias.data.fill_(1.0)
-                
-        # self.enc.apply(init_weights)
-        self.main.apply(init_weights)
-
-    def forward(self, shs, rotations, scales, viewdirs, xyz):
-        shs = shs.view(shs.size(0), -1)
-        shs = torch.nn.functional.normalize(shs)
-        
+    def forward(self, viewdirs, xyz):
         emb = self.enc(xyz)
-        x = torch.concat([shs, viewdirs, rotations, scales, emb], dim=1)
+        x = torch.concat([viewdirs, emb], dim=1)
         x = self.main(x)
 
         return x

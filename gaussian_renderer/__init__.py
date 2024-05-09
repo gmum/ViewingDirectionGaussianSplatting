@@ -125,7 +125,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         dir_pp = (pc.get_xyz - cc)
         dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
 
-        factor = pc._vdgs(shs, rotations, scales, dir_pp_normalized, pc.get_xyz)
+        factor = pc._vdgs(dir_pp_normalized, means3D)
         shs, opacity = process_vdgs(pc, shs, opacity, factor)
         
     
